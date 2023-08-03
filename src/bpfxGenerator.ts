@@ -46,9 +46,25 @@ export const generateBpfx = (autoplay: ArSign): any => {
 
 export const newSign = (autoplay: AutoplayMetadata): any => {
   return (dispatch: Function, getState: any): any => {
+
     const { name, model, videoMode } = autoplay;
+
+    let videoModeToUse: VideoMode;
+    if (!getEnumKeyOfValue(VideoMode, videoMode as any)) {
+      videoModeToUse = VideoMode.v1920x1080x60p;
+    } else {
+      videoModeToUse = videoMode as any;
+    }
+
+    let modelToUse: PlayerModel;
+    if (!getEnumKeyOfValue(PlayerModel, modelToUse as any)) {
+      modelToUse = PlayerModel.XT1144;
+    } else {
+      modelToUse = model as any;
+    }
+
     // const { name } = autoplay;
-    const signAction: any = dmNewSign(name, VideoMode.v1920x1080x60p, PlayerModel.XT1144);
+    const signAction: any = dmNewSign(name, videoModeToUse, modelToUse);
     dispatch(signAction);
     // return signAction;
   };
