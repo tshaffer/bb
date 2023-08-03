@@ -1,5 +1,9 @@
 import { PlayerModel, VideoMode } from '@brightsign/bscore';
 import { dmNewSign } from "@brightsign/bsdatamodel";
+import { Bpf } from './baInterfaces';
+
+export const generateBpfx = (bpf: Bpf): any => {
+};
 
 export function newSign(): any {
   return (dispatch: Function, getState: any): any => {
