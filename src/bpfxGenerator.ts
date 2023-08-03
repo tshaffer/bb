@@ -1,16 +1,15 @@
 import { isNil } from 'lodash';
-import { AssetType, DeviceWebPageDisplay, GpioType, GraphicsZOrderType, PlayerModel, VideoMode, bscAssetItemFromBasicAssetInfo, getEnumKeyOfValue } from '@brightsign/bscore';
-import { DmGpioList, DmSignMetadata, DmSignProperties, DmSignState, DmState, SignAction, SignParams, dmGetSignState, dmNewSign, dmSetPresentationWebPage, dmUpdateSignGpio, dmUpdateSignProperties } from "@brightsign/bsdatamodel";
+import { AssetType, BsIrRemoteControl, BsRect, DeviceWebPageDisplay, GpioType, GraphicsZOrderType, ImageModeType, IrReceiverSource, IrRemoteModel, IrTransmitterDestination, PlayerModel, VideoMode, ZoneLayerType, ZoneType, bscAssetItemFromBasicAssetInfo, bscGetIrRemoteControl, getEnumKeyOfValue } from '@brightsign/bscore';
+import { AudioSignPropertyMapParams, BsDmId, BsDmThunkAction, DmAudioSignProperties, DmAudioSignPropertyMap, DmGpioList, DmImageZoneProperties, DmImageZonePropertyData, DmSignMetadata, DmSignProperties, DmSignState, DmState, DmVideoZoneProperties, DmZoneLayerIdParams, SignAction, SignParams, VideoOrImagesZonePropertyParams, ZoneAddAction, ZoneAddInputParams, ZoneAddParams, ZonePropertyUpdateParams, dmAddZone, dmGetSignState, dmGetZoneLayerIdByTypeAndIndex, dmNewSign, dmSetPresentationWebPage, dmUpdateSignAudioPropertyMap, dmUpdateSignGpio, dmUpdateSignIrInConfiguration, dmUpdateSignIrOutConfiguration, dmUpdateSignIrRemoteControl, dmUpdateSignProperties, dmUpdateZoneProperties } from "@brightsign/bsdatamodel";
 import { LiveDataFeed } from './baInterfaces';
-import { ArSign, ArSignMetadata, AutoplayMetadata, BrightAuthorHeader } from './types';
-import { isString } from 'util';
+import { ArSign, ArSignMetadata, ArVideoOrImagesZone, ArVideoOrImagesZoneProperties, ArVideoZonePropertyData, ArZone, AutoplayMetadata, BrightAuthorHeader } from './types';
 
 export const generateBpfx = (autoplay: ArSign): any => {
   return (dispatch: Function, getState: any): any => {
     dispatch(newSign(autoplay.meta));
     dispatch(setSignProperties(autoplay.meta));
-    // dispatch(setSignAudioProperties(autoplay));
-    // dispatch(setSignIRRemote(autoplay));
+    dispatch(setSignAudioProperties(autoplay.meta));
+    dispatch(setSignIRRemote());
     // dispatch(setSerialPortConfiguration(autoplay));
     // dispatch(addUserVariables(autoplay.meta.userVariables));
     // dispatch(addHtmlSites(autoplay.meta.htmlSites));
@@ -37,6 +36,10 @@ export const generateBpfx = (autoplay: ArSign): any => {
     //     // console.log(getState().bsdm);
     //     return Promise.resolve(getState());
     //   });
+
+    const zoneIds: string[] = dispatch(addAllZones(autoplay.zones));
+    // const promise: any = dispatch(buildZonePlaylists(bpf, zoneIds));
+    // return promise;
 
     const newState = getState();
     console.log(newState);
@@ -233,10 +236,78 @@ const addToSignParamsIfNotNil = (signParams: SignParams, propertyName: string, p
 }
 
 
-export const setSignAudioProperties = (autoplay: any): any => {
+export const setSignAudioProperties = (autoplayMetadata: ArSignMetadata): any => {
+  return (dispatch: Function): any => {
+    const bpfAudioVolumeNames: string[] = [
+      'audio1',
+      'hdmi',
+      'spdif',
+      'usbTypeA',
+      'usbTypeC',
+      'usb700_1',
+      'usb700_2',
+      'usb700_3',
+      'usb700_4',
+      'usb700_5',
+      'usb700_6',
+      'usb700_7',
+    ];
+
+    const bpfxAudioOutputs: string[] = [
+      'analog1',
+      'hdmi',
+      'spdif',
+      'usbTypeA',
+      'usbTypeC',
+      'usb700_1',
+      'usb700_2',
+      'usb700_3',
+      'usb700_4',
+      'usb700_5',
+      'usb700_6',
+      'usb700_7',
+    ];
+
+    const audioSignPropertyMap: DmAudioSignPropertyMap = {};
+    let audioSignProperties: DmAudioSignProperties;
+
+    // for (let i = 0; i < bpfAudioVolumeNames.length; i++) {
+    //   audioSignProperties = {
+    //     min: bpf.metadata[bpfAudioVolumeNames[i] + 'MinVolume'],
+    //     max: bpf.metadata[bpfAudioVolumeNames[i] + 'MaxVolume'],
+    //   };
+    //   audioSignPropertyMap[bpfxAudioOutputs[i]] = audioSignProperties;
+    // }
+
+    // const audioSignPropertyMapParams: AudioSignPropertyMapParams = {
+    //   audioSignMap: audioSignPropertyMap
+    // };
+
+    // dispatch(dmUpdateSignAudioPropertyMap(audioSignPropertyMapParams));
+  };
 };
 
-export const setSignIRRemote = (autoplay: any): any => {
+export const setSignIRRemote = (): any => {
+  return (dispatch: Function): any => {
+    dispatch(dmUpdateSignIrInConfiguration({
+      irInConfiguration: {
+        source: IrReceiverSource.Iguana
+      }
+    }));
+    dispatch(dmUpdateSignIrOutConfiguration({
+      irOutConfiguration: {
+        destination: IrTransmitterDestination.Iguana
+      }
+    }));
+    const irConfiguration: BsIrRemoteControl = bscGetIrRemoteControl(IrRemoteModel.RC1001);
+    const irRemoteConfiguration: BsIrRemoteControl = {
+      id: irConfiguration.id,
+      encoding: irConfiguration.encoding,
+      manufacturerCode: irConfiguration.manufacturerCode,
+      buttons: irConfiguration.buttons
+    };
+    dispatch(dmUpdateSignIrRemoteControl(irRemoteConfiguration));
+  };
 };
 
 export const setSerialPortConfiguration = (autoplay: any): any => {
@@ -278,8 +349,162 @@ function buildDataFeedSourceSpecs(bsdm: DmState, liveDataFeeds: any[]) {
 export const executeBuildDataFeedSourceSpecs = (bsdm: DmState, liveDataFeeds: LiveDataFeed[]): any => {
 };
 
-export const addAllZones = (autoplay: any): any => {
+export const addAllZones = (zones: ArZone[]): any => {
+
+  return (dispatch: Function, getState: Function): any => {
+
+    const zoneIds: BsDmId[] = [];
+
+    let bsdm: DmState = getState().bsdm;
+
+    const videoLayer1Id: BsDmId = dmGetZoneLayerIdByTypeAndIndex(bsdm, { type: ZoneLayerType.Video, index: 0 });
+    const videoLayer2Id: BsDmId = dmGetZoneLayerIdByTypeAndIndex(bsdm, { type: ZoneLayerType.Video, index: 1 });
+    const graphicsLayerId: BsDmId = dmGetZoneLayerIdByTypeAndIndex(bsdm, { type: ZoneLayerType.Graphics });
+    const audioLayerId: BsDmId = dmGetZoneLayerIdByTypeAndIndex(bsdm, { type: ZoneLayerType.Audio });
+    const invisibleLayerId: BsDmId = dmGetZoneLayerIdByTypeAndIndex(bsdm, { type: ZoneLayerType.Invisible });
+
+    zones.forEach((zone: ArZone) => {
+      const { x, y, width, height } = zone.absolutePosition;
+
+      const zoneRect: BsRect = {
+        x,
+        y,
+        width,
+        height,
+        pct: false
+      };
+
+      const zoneLayerIdParams: DmZoneLayerIdParams = {};
+      switch (zone.type) {
+        case ZoneType.VideoOrImages:
+        case ZoneType.VideoOnly:
+          if ((zone.zoneSpecificParameters as ArVideoZonePropertyData).zOrderFront) {
+            zoneLayerIdParams.videoLayerId = videoLayer1Id;
+          }
+          else {
+            zoneLayerIdParams.videoLayerId = videoLayer2Id;
+          }
+          if (zone.type === ZoneType.VideoOrImages) {
+            zoneLayerIdParams.graphicsLayerId = graphicsLayerId;
+          }
+          break;
+        // case ZoneType.BackgroundImage:
+        //   if (!isNil(videoLayer2Id)) {
+        //     zoneLayerIdParams.videoLayerId = videoLayer2Id;
+        //   }
+        //   else {
+        //     zoneLayerIdParams.videoLayerId = videoLayer1Id;
+        //   }
+        //   break;
+        // case ZoneType.Images:
+        // case ZoneType.Ticker:
+        // case ZoneType.Clock:
+        //   zoneLayerIdParams.graphicsLayerId = graphicsLayerId;
+        //   break;
+        // case ZoneType.AudioOnly:
+        // case ZoneType.EnhancedAudio:
+        //   zoneLayerIdParams.audioLayerId = audioLayerId;
+        //   break;
+      }
+      const zoneAddInputParams: ZoneAddInputParams = {
+        nonInteractive: zone.playlist.type !== 'interactive',
+        position: zoneRect,
+        allowTransitionToMosaic: false, // TEDTODO - when we add mosaic mode support
+        zoneLayerIdParams
+      };
+      const zoneAddAction: ZoneAddAction =
+        dispatch(dmAddZone(zone.name, zone.type, zone.id, zoneAddInputParams));
+      const zoneAddParams: ZoneAddParams = zoneAddAction.payload;
+
+      const zoneId: BsDmId = zoneAddParams.zone.id;
+      const zoneType: ZoneType = zoneAddParams.zone.type;
+
+      dispatch(setZoneProperties(zone, zoneId, zoneType));
+
+      zoneIds.push(zoneId);
+    });
+
+  };
 };
+
+const setZoneProperties = (
+  bpfZone: any,
+  zoneId: BsDmId,
+  zoneType: ZoneType) => {
+
+  return (dispatch: Function, getState: Function): any => {
+    switch (zoneType) {
+      case ZoneType.VideoOrImages: {
+        dispatch(setVideoOrImagesZoneSpecificProperties(bpfZone, zoneId));
+        break;
+      }
+      // case ZoneType.VideoOnly: {
+      //   dispatch(setVideoZoneSpecificProperties(bpfZone, zoneId));
+      //   break;
+      // }
+      // case ZoneType.Images: {
+      //   dispatch(setImageZoneSpecificProperties(bpfZone, zoneId));
+      //   break;
+      // }
+      // case ZoneType.AudioOnly: {
+      //   dispatch(setAudioZoneSpecificProperties(bpfZone, zoneId));
+      //   break;
+      // }
+      // case ZoneType.EnhancedAudio: {
+      //   dispatch(setEnhancedAudioZoneSpecificProperties(bpfZone, zoneId));
+      //   break;
+      // }
+      // case ZoneType.Ticker: {
+      //   dispatch(setTickerZoneSpecificProperties(bpfZone, zoneId));
+      //   break;
+      // }
+      // case ZoneType.Clock: {
+      //   dispatch(setClockZoneSpecificProperties(bpfZone, zoneId));
+      //   break;
+      // }
+      case ZoneType.BackgroundImage: {
+        // no zoneSpecific properties for a background image zone
+        break;
+      }
+      default: {
+        throw 'Invalid zone type';
+      }
+    }
+  };
+}
+
+const setVideoOrImagesZoneSpecificProperties = (arZone: ArVideoOrImagesZone, zoneId: BsDmId) => {
+  return (dispatch: Function, getState: Function): any => {
+    const zoneSpecificParameters: ArVideoOrImagesZoneProperties = arZone.zoneSpecificParameters;
+
+    const imageMode: ImageModeType = zoneSpecificParameters.imageMode;
+
+    const imageZonePropertyData: DmImageZonePropertyData = {
+      imageMode,
+    };
+    const imageZoneProperties: DmImageZoneProperties = imageZonePropertyData;
+
+    // const audioZonePropertyData = getAudioZonePropertyData(zoneSpecificParameters);
+
+    // const videoZonePropertyData = getVideoZonePropertyData(zoneSpecificParameters);
+
+    // const videoZoneProperties: DmVideoZoneProperties =
+    //   Object.assign({}, videoZonePropertyData, audioZonePropertyData);
+
+    // const zonePropertyParams: VideoOrImagesZonePropertyParams =
+    //   Object.assign({}, videoZoneProperties, imageZoneProperties);
+
+    // const zonePropertyUpdateParams: ZonePropertyUpdateParams = {
+    //   id: zoneId,
+    //   type: ZoneType.VideoOrImages,
+    //   properties: zonePropertyParams
+    // };
+    // const updateZonePropertyThunkAction: BsDmThunkAction<ZonePropertyUpdateParams> =
+    //   dmUpdateZoneProperties(zonePropertyUpdateParams);
+    // dispatch(updateZonePropertyThunkAction);
+  };
+}
+
 
 export const buildZonePlaylists = (autoplay: any, zoneIds: string[]): any => {
 };
