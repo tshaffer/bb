@@ -1,9 +1,30 @@
 import * as fs from 'fs';
 
+import { createStore, applyMiddleware, combineReducers, Store } from 'redux';
+import thunk from 'redux-thunk';
+import { composeWithDevTools } from 'redux-devtools-extension';
+
 import { ImageModeType } from '@brightsign/bscore';
+import { bsDmReducer } from '@brightsign/bsdatamodel';
 
 console.log('Hello big world!')
+
 console.log(ImageModeType.ScaleToFill);
+
+const reducers = combineReducers<any>({
+  bsdm: bsDmReducer,
+});
+
+const store: Store<any> = createStore(
+  reducers,
+  composeWithDevTools(
+    applyMiddleware(
+      thunk,
+    ),
+  )
+);
+
+// store.dispatch();
 
 process.argv.forEach(function (val, index, array) {
   console.log(index + ': ' + val);
