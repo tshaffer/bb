@@ -5,7 +5,7 @@ import thunk from 'redux-thunk';
 import { composeWithDevTools } from 'redux-devtools-extension';
 
 import { bsDmReducer } from '@brightsign/bsdatamodel';
-import { newSign } from './bpfxCreator';
+import { generateBpfx, newSign } from './bpfxGenerator';
 
 console.log('Hello world!')
 
@@ -35,7 +35,7 @@ console.log('autoplay file: ' + autoplayFile);
 const autoplay = JSON.parse(autoplayFile.toString());
 console.log('autoplay: ' + autoplay);
 
-store.dispatch(newSign());
+store.dispatch(generateBpfx(autoplay));
 
 // const autoplayStr = JSON.stringify(autoplay, null, 4); // (Optional) beautiful indented output.
 // console.log(autoplayStr); // Logs output to dev tools console.

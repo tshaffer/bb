@@ -111,5 +111,3 @@ export interface BaFeedAssetItemSpec {
   url: string;
 }
 
-
-
