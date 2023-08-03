@@ -13,6 +13,7 @@
   "license": "ISC",
   "devDependencies": {
     "@tsconfig/recommended": "^1.0.2",
+    "@types/lodash": "^4.14.162",
     "@types/node": "^20.4.6",
     "nodemon": "^3.0.1",
     "ts-node": "^10.9.1",
@@ -22,6 +23,7 @@
   "dependencies": {
     "@brightsign/bscore": "^1.9.0",
     "@brightsign/bsdatamodel": "^1.6.0",
+    "lodash": "^4.17.20",
     "redux": "^4.0.5",
     "redux-devtools-extension": "^2.13.8",
     "redux-promise": "^0.6.0",

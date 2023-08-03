@@ -6,7 +6,7 @@ import { composeWithDevTools } from 'redux-devtools-extension';
 
 import { bsDmReducer } from '@brightsign/bsdatamodel';
 import { generateBpfx } from './bpfxGenerator';
-import { Autoplay } from './types';
+import { ArAutoplay, ArSign, Autoplay } from './types';
 
 console.log('Hello world!')
 
@@ -33,7 +33,7 @@ console.log('autoplay file path: ' + autoPlayFilePath);
 const autoplayFile: Buffer = fs.readFileSync(autoPlayFilePath);
 console.log('autoplay file: ' + autoplayFile);
 
-const autoplay: Autoplay = JSON.parse(autoplayFile.toString());
+const autoplay: ArAutoplay = JSON.parse(autoplayFile.toString());
 console.log('autoplay: ' + autoplay);
 
 store.dispatch(generateBpfx(autoplay.BrightAuthor));
