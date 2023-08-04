@@ -1,6 +1,6 @@
 import { isNil } from 'lodash';
 import { AssetType, AudioMixModeType, BsIrRemoteControl, BsRect, DeviceWebPageDisplay, GpioType, GraphicsZOrderType, ImageModeType, IrReceiverSource, IrRemoteModel, IrTransmitterDestination, PlayerModel, VideoMode, ZoneLayerType, ZoneType, bscAssetItemFromBasicAssetInfo, bscGetIrRemoteControl, getEnumKeyOfValue } from '@brightsign/bscore';
-import { AudioSignPropertyMapParams, BsDmId, BsDmThunkAction, DmAudioOutputAssignmentMap, DmAudioSignProperties, DmAudioSignPropertyMap, DmAudioZonePropertyData, DmEntityType, DmGpioList, DmImageZoneProperties, DmImageZonePropertyData, DmSignMetadata, DmSignProperties, DmSignState, DmState, DmVideoZoneProperties, DmVideoZonePropertyData, DmZoneLayerIdParams, SignAction, SignParams, VideoOrImagesZonePropertyParams, ZoneAddAction, ZoneAddInputParams, ZoneAddParams, ZonePropertyUpdateParams, dmAddZone, dmGetSignState, dmGetZoneLayerIdByTypeAndIndex, dmNewSign, dmSetPresentationWebPage, dmUpdateSignAudioPropertyMap, dmUpdateSignGpio, dmUpdateSignIrInConfiguration, dmUpdateSignIrOutConfiguration, dmUpdateSignIrRemoteControl, dmUpdateSignProperties, dmUpdateZoneProperties } from "@brightsign/bsdatamodel";
+import { AudioSignPropertyMapParams, BsDmId, BsDmThunkAction, DmAudioOutputAssignmentMap, DmAudioSignProperties, DmAudioSignPropertyMap, DmAudioZonePropertyData, DmEntityType, DmGpioList, DmImageZoneProperties, DmImageZonePropertyData, DmSignMetadata, DmSignProperties, DmSignState, DmState, DmVideoZoneProperties, DmVideoZonePropertyData, DmZoneLayerIdParams, SignAction, SignParams, VideoOrImagesZonePropertyParams, ZoneAddAction, ZoneAddInputParams, ZoneAddParams, ZonePropertyUpdateParams, dmAddZone, dmGetSignState, dmGetZoneLayerIdByTypeAndIndex, dmGetZoneLayerSequence, dmMoveZoneLayersAtIndices, dmNewSign, dmSetPresentationWebPage, dmUpdateSignAudioPropertyMap, dmUpdateSignGpio, dmUpdateSignIrInConfiguration, dmUpdateSignIrOutConfiguration, dmUpdateSignIrRemoteControl, dmUpdateSignProperties, dmUpdateZoneProperties } from "@brightsign/bsdatamodel";
 import { LiveDataFeed } from './baInterfaces';
 import { ArSign, ArSignMetadata, ArVideoOrImagesZone, ArVideoOrImagesZoneProperties, ArVideoZonePropertyData, ArZone, AutoplayMetadata, BpfConverterSpec, BrightAuthorHeader } from './types';
 
@@ -425,9 +425,67 @@ export const addAllZones = (zones: ArZone[]): any => {
     });
 
     // set z order of zone layers
-    console.log('pizza');
+    bsdm = getState().bsdm;
+    let indices: number[];
+    let indexOfGraphicsLayer: number = -1;
+    let indexOfVideoLayer1: number = -1;
+    let indexOfVideoLayer2: number = -1;
+
+    const zoneLayerIdsInSequence: BsDmId[] = dmGetZoneLayerSequence(bsdm);
+    zoneLayerIdsInSequence.forEach((zoneLayerId: BsDmId, index: number) => {
+      switch (zoneLayerId) {
+        case graphicsLayerId:
+          indexOfGraphicsLayer = index;
+          break;
+        case videoLayer1Id:
+          indexOfVideoLayer1 = index;
+          break;
+        case videoLayer2Id:
+          indexOfVideoLayer2 = index;
+          break;
+      }
+    });
+
+    switch (_graphicsZOrder) {
+      case GraphicsZOrderType.Front:
+        indices = setZoneLayerIndices(indexOfGraphicsLayer, indexOfVideoLayer1, indexOfVideoLayer2);
+        break;
+      case GraphicsZOrderType.Middle:
+        indices = setZoneLayerIndices(indexOfVideoLayer1, indexOfGraphicsLayer, indexOfVideoLayer2);
+        break;
+      case GraphicsZOrderType.Back:
+        indices = setZoneLayerIndices(indexOfVideoLayer1, indexOfVideoLayer2, indexOfGraphicsLayer);
+        break;
+    }
+    for (let targetIndex = 0; targetIndex < indices.length; targetIndex++) {
+      const existingIndex = indices[targetIndex];
+      if (existingIndex !== targetIndex) {
+        dispatch(dmMoveZoneLayersAtIndices(existingIndex, targetIndex));
+        for (let j = targetIndex + 1; j < indices.length; j++) {
+          if (indices[j] < existingIndex) {
+            indices[j]++;
+          }
+        }
+      }
+    }
+    return zoneIds;
+
   };
 };
+
+function setZoneLayerIndices(index0: number, index1: number, index2: number): number[] {
+  const indices: number[] = [];
+  if (index0 >= 0) {
+    indices.push(index0);
+  }
+  if (index1 >= 0) {
+    indices.push(index1);
+  }
+  if (index2 >= 0) {
+    indices.push(index2);
+  }
+  return indices;
+}
 
 const setZoneProperties = (
   bpfZone: any,
