@@ -4,7 +4,7 @@
   "description": "",
   "main": "dist/index.js",
   "scripts": {
-    "app": "node dist/index.js /Users/tedshaffer/Documents/Projects/brightbuddy-ai/samples/autoplay/autoplay-oneZoneNonInteractive.json",
+    "app": "node dist/index.js /Users/tedshaffer/Documents/Projects/brightbuddy-ai/samples/autoplay/autoplay-oneZoneNonInteractive.json /Users/tedshaffer/Documents/BrightAuthor/baconPresentations/brightBuddy/converted_oneZoneNonInteractive.bpfx",
     "build-ts": "tsc",
     "start": "npm run app"
   },

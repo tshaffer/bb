@@ -41,6 +41,9 @@ process.argv.forEach(function (val, index, array) {
 const autoPlayFilePath = process.argv[2];
 console.log('autoplay file path: ' + autoPlayFilePath);
 
+const bpfxFilePath = process.argv[3];
+console.log('bpfxFilePath file path: ' + bpfxFilePath);
+
 const autoplayFile: Buffer = fs.readFileSync(autoPlayFilePath);
 
 const autoplay: ArAutoplay = JSON.parse(autoplayFile.toString());
@@ -49,6 +52,9 @@ const promise: Promise<any> = store.dispatch(generateBpfx(autoplay.BrightAuthor)
 promise.then( (bpfData: any) => {
   const bpfxState: BsBpfxState = createProjectFileStateFromState(bpfData);
   console.log(bpfxState);
+
+  const bpfxStateStr: string = JSON.stringify(bpfxState);
+  fs.writeFileSync(bpfxFilePath, bpfxStateStr, 'utf8');
 })
 
 const eventMenuState: BsBpfxEventMenuState = {
