@@ -31,10 +31,10 @@ const autoPlayFilePath = process.argv[2];
 console.log('autoplay file path: ' + autoPlayFilePath);
 
 const autoplayFile: Buffer = fs.readFileSync(autoPlayFilePath);
-console.log('autoplay file: ' + autoplayFile);
+// console.log('autoplay file: ' + autoplayFile);
 
 const autoplay: ArAutoplay = JSON.parse(autoplayFile.toString());
-console.log('autoplay: ' + autoplay);
+// console.log('autoplay: ' + autoplay);
 
 store.dispatch(generateBpfx(autoplay.BrightAuthor));
 

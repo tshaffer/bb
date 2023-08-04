@@ -1,14 +1,20 @@
-import { isNil } from 'lodash';
-import { AssetType, AudioMixModeType, BsIrRemoteControl, BsRect, DeviceWebPageDisplay, GpioType, GraphicsZOrderType, ImageModeType, IrReceiverSource, IrRemoteModel, IrTransmitterDestination, PlayerModel, VideoMode, ZoneLayerType, ZoneType, bscAssetItemFromBasicAssetInfo, bscGetIrRemoteControl, getEnumKeyOfValue } from '@brightsign/bscore';
-import { AudioSignPropertyMapParams, BsDmId, BsDmThunkAction, DmAudioOutputAssignmentMap, DmAudioSignProperties, DmAudioSignPropertyMap, DmAudioZonePropertyData, DmEntityType, DmGpioList, DmImageZoneProperties, DmImageZonePropertyData, DmSignMetadata, DmSignProperties, DmSignState, DmState, DmVideoZoneProperties, DmVideoZonePropertyData, DmZoneLayerIdParams, SignAction, SignParams, VideoOrImagesZonePropertyParams, ZoneAddAction, ZoneAddInputParams, ZoneAddParams, ZonePropertyUpdateParams, dmAddZone, dmGetSignState, dmGetZoneLayerIdByTypeAndIndex, dmGetZoneLayerSequence, dmMoveZoneLayersAtIndices, dmNewSign, dmSetPresentationWebPage, dmUpdateSignAudioPropertyMap, dmUpdateSignGpio, dmUpdateSignIrInConfiguration, dmUpdateSignIrOutConfiguration, dmUpdateSignIrRemoteControl, dmUpdateSignProperties, dmUpdateZoneProperties } from "@brightsign/bsdatamodel";
-import { LiveDataFeed } from './baInterfaces';
+import * as os from 'os';
+import path from 'isomorphic-path';
+
+import { isNil, isString, isObject, isNumber } from 'lodash';
+
+import { fsGetAssetItemFromFile } from '@brightsign/fsconnector';
+
+import { AssetType, AudioMixModeType, BsAssetItem, BsIrRemoteControl, BsRect, BscFileTypeInfo, CommandSequenceType, CommandType, DeviceWebPageDisplay, EventType, GpioType, GraphicsZOrderType, ImageModeType, IrReceiverSource, IrRemoteModel, IrTransmitterDestination, MediaType, PlayerModel, TransitionType, VideoMode, ZoneLayerType, ZoneType, bscAssetItemFromBasicAssetInfo, bscGetBscFileTypeInfo, bscGetIrRemoteControl, getEnumKeyOfValue } from '@brightsign/bscore';
+import { AudioSignPropertyMapParams, BsDmId, BsDmThunkAction, CommandAddParams, CommandDataParams, DmAudioOutputAssignmentMap, DmAudioSignProperties, DmAudioSignPropertyMap, DmAudioZonePropertyData, DmCommand, DmCommandData, DmEntityType, DmGpioList, DmImageZoneProperties, DmImageZonePropertyData, DmMediaStateContainer, DmSignMetadata, DmSignProperties, DmSignState, DmState, DmVideoContentItemData, DmVideoZoneProperties, DmVideoZonePropertyData, DmZoneLayerIdParams, DmcEvent, DmcMediaState, DmcZone, EventParams, MediaStateAction, MediaStateContainerType, MediaStateParams, SignAction, SignParams, VideoOrImagesZonePropertyParams, ZoneAddAction, ZoneAddInputParams, ZoneAddParams, ZonePropertyUpdateParams, dmAddCommand, dmAddMediaState, dmAddZone, dmCreateCommand, dmCreateCommandData, dmGetEventById, dmGetEventIdsForMediaState, dmGetMediaStateById, dmGetMediaStateIdsForProps, dmGetSignState, dmGetZoneById, dmGetZoneLayerIdByTypeAndIndex, dmGetZoneLayerSequence, dmGetZoneMediaStateContainer, dmMoveZoneLayersAtIndices, dmNewSign, dmPlaylistAddMediaState, dmSetPresentationWebPage, dmUpdateEvent, dmUpdateSignAudioPropertyMap, dmUpdateSignGpio, dmUpdateSignIrInConfiguration, dmUpdateSignIrOutConfiguration, dmUpdateSignIrRemoteControl, dmUpdateSignProperties, dmUpdateZone, dmUpdateZoneProperties } from "@brightsign/bsdatamodel";
+import { BACommandNames, LiveDataFeed } from './baInterfaces';
 import { ArSign, ArSignMetadata, ArVideoOrImagesZone, ArVideoOrImagesZoneProperties, ArVideoZonePropertyData, ArZone, AutoplayMetadata, BpfConverterSpec, BrightAuthorHeader } from './types';
 
-export const generateBpfx = (autoplay: ArSign): any => {
+export const generateBpfx = (arSign: ArSign): any => {
   return (dispatch: Function, getState: any): any => {
-    dispatch(newSign(autoplay.meta));
-    dispatch(setSignProperties(autoplay.meta));
-    dispatch(setSignAudioProperties(autoplay.meta));
+    dispatch(newSign(arSign.meta));
+    dispatch(setSignProperties(arSign.meta));
+    dispatch(setSignAudioProperties(arSign.meta));
     dispatch(setSignIRRemote());
     // dispatch(setSerialPortConfiguration(autoplay));
     // dispatch(addUserVariables(autoplay.meta.userVariables));
@@ -37,12 +43,9 @@ export const generateBpfx = (autoplay: ArSign): any => {
     //     return Promise.resolve(getState());
     //   });
 
-    const zoneIds: string[] = dispatch(addAllZones(autoplay.zones));
-    // const promise: any = dispatch(buildZonePlaylists(bpf, zoneIds));
-    // return promise;
-
-    const newState = getState();
-    console.log(newState);
+    const zoneIds: string[] = dispatch(addAllZones(arSign.zones));
+    const promise: any = dispatch(buildZonePlaylists(arSign, zoneIds));
+    return promise;
 
   }
 };
@@ -160,10 +163,7 @@ export const setSignProperties = (autoplayMetadata: ArSignMetadata): any => {
       irRemoteControl,
     } = autoplayMetadata;
 
-    console.log(autoplayMetadata)
-
     _graphicsZOrder = graphicsZOrder;
-
 
     const signParams: SignParams = {
       id: signProperties.id
@@ -488,38 +488,38 @@ function setZoneLayerIndices(index0: number, index1: number, index2: number): nu
 }
 
 const setZoneProperties = (
-  bpfZone: any,
+  arZone: any,
   zoneId: BsDmId,
   zoneType: ZoneType) => {
 
   return (dispatch: Function, getState: Function): any => {
     switch (zoneType) {
       case ZoneType.VideoOrImages: {
-        dispatch(setVideoOrImagesZoneSpecificProperties(bpfZone, zoneId));
+        dispatch(setVideoOrImagesZoneSpecificProperties(arZone, zoneId));
         break;
       }
       // case ZoneType.VideoOnly: {
-      //   dispatch(setVideoZoneSpecificProperties(bpfZone, zoneId));
+      //   dispatch(setVideoZoneSpecificProperties(arZone, zoneId));
       //   break;
       // }
       // case ZoneType.Images: {
-      //   dispatch(setImageZoneSpecificProperties(bpfZone, zoneId));
+      //   dispatch(setImageZoneSpecificProperties(arZone, zoneId));
       //   break;
       // }
       // case ZoneType.AudioOnly: {
-      //   dispatch(setAudioZoneSpecificProperties(bpfZone, zoneId));
+      //   dispatch(setAudioZoneSpecificProperties(arZone, zoneId));
       //   break;
       // }
       // case ZoneType.EnhancedAudio: {
-      //   dispatch(setEnhancedAudioZoneSpecificProperties(bpfZone, zoneId));
+      //   dispatch(setEnhancedAudioZoneSpecificProperties(arZone, zoneId));
       //   break;
       // }
       // case ZoneType.Ticker: {
-      //   dispatch(setTickerZoneSpecificProperties(bpfZone, zoneId));
+      //   dispatch(setTickerZoneSpecificProperties(arZone, zoneId));
       //   break;
       // }
       // case ZoneType.Clock: {
-      //   dispatch(setClockZoneSpecificProperties(bpfZone, zoneId));
+      //   dispatch(setClockZoneSpecificProperties(arZone, zoneId));
       //   break;
       // }
       case ZoneType.BackgroundImage: {
@@ -527,7 +527,8 @@ const setZoneProperties = (
         break;
       }
       default: {
-        throw 'Invalid zone type';
+        debugger;
+        // throw 'Invalid zone type';
       }
     }
   };
@@ -641,7 +642,727 @@ function getVideoZonePropertyData(zoneSpecificParameters: any):
 }
 
 
-export const buildZonePlaylists = (autoplay: any, zoneIds: string[]): any => {
+export const buildZonePlaylists = (arSign: ArSign, zoneIds: string[]): any => {
+
+  return (dispatch: Function, getState: Function): any => {
+
+    const promises: Array<Promise<any>> = [];
+
+    zoneIds.forEach((zoneId: BsDmId, zoneIndex: number) => {
+      const arZone: any = arSign.zones[zoneIndex];
+      promises.push(dispatch(buildZonePlaylist(arZone, zoneId)));
+    });
+
+    return Promise.all(promises)
+      .then(() => {
+        dispatch(executeSecondPass(arSign));
+      });
+  };
 };
+
+function getMediaStateInZone(bsdm: DmState, zoneId: BsDmId, stateName: string): DmcMediaState | null {
+  const mediaStateIds = dmGetMediaStateIdsForProps(bsdm, {
+    name: stateName,
+    containerId: zoneId,
+    searchContainedSuperStates: true,
+  });
+  if (mediaStateIds.length === 0) {
+    return null;
+  }
+  // TODO - check if mediaStateIds.length > 1
+  const mediaState: DmcMediaState = dmGetMediaStateById(bsdm, { id: mediaStateIds[0] });
+  return mediaState;
+}
+
+
+function buildZonePlaylist(arZone: ArZone, zoneId: BsDmId): Function {
+
+  return (dispatch: Function, getState: Function): any => {
+
+    const zone: DmMediaStateContainer = dmGetZoneMediaStateContainer(zoneId);
+
+    return dispatch(addStatesToZone(zone, arZone.playlist.states, arZone.playlist.type === 'interactive'))
+      .then((eventData: any) => {
+        // set initialState for  interactive zones - it's set by bsdm for non interactive zones.
+        if (arZone.playlist.type === 'interactive') {
+          debugger;
+          // if (isString(arZone.playlist.initialState)
+          //   && arZone.playlist.initialState !== '') {
+          //   const initialStateName = arZone.playlist.initialState;
+          //   const initialState: DmcMediaState = getMediaStateInZone(getState().bsdm, zoneId, initialStateName);
+
+          //   if (isObject(initialState)) {
+          //     dispatch(dmUpdateZone({
+          //       id: zone.id,
+          //       initialMediaStateId: initialState.id
+          //     }));
+          //   }
+          // }
+        } else {
+          // for a non interactive playlist, update all the timeOnScreen values
+          for (const eventDataItem of eventData) {
+            const eventIds: BsDmId[] = dmGetEventIdsForMediaState(getState().bsdm, { id: eventDataItem.mediaStateId });
+            for (const eventId of eventIds) {
+              const dmcEvent: DmcEvent | null = dmGetEventById(getState().bsdm, { id: eventId });
+              if (!isNil(dmcEvent) && dmcEvent.type === EventType.Timer) {
+                const eventParams: EventParams = {
+                  id: eventId,
+                  type: dmcEvent.type,
+                  data: eventDataItem.eventSpecification.data
+                };
+                dispatch(dmUpdateEvent(eventParams));
+              }
+            }
+          }
+        }
+
+        if (!isNil(arZone.playlist.states) && arZone.playlist.states.length > 0) {
+          if (arZone.playlist.type === 'interactive') {
+            debugger;
+            // dispatch(buildInteractiveTransitions(arZone, zoneId));
+          }
+        }
+      });
+  };
+}
+
+function addState(
+  addItem: Function,
+  mediaStateContainer: any, state: any, isInteractive: boolean): Function {
+  return (dispatch: Function, getState: Function): any => {
+    const mediaStateId = dispatch(addItem(mediaStateContainer, state, isInteractive));
+    return Promise.resolve(
+      {
+        state,
+        mediaStateId,
+      }
+    );
+  };
+}
+
+function createTimeoutEventData(mediaStateId: BsDmId, timeout: number) {
+  return {
+    mediaStateId,
+    eventSpecification: {
+      type: EventType.Timer,
+      data: {
+        interval: timeout
+      }
+    }
+  };
+}
+
+function createMediaEndEventData(mediaStateId: BsDmId) {
+  return {
+    mediaStateId,
+    eventSpecification: {
+      type: EventType.MediaEnd,
+      data: null as any
+    }
+  };
+}
+
+export function getFileName(filePath: string): string {
+  const normalizedPath = normalizePath(filePath);
+  return path.basename(normalizedPath);
+}
+
+function normalizePath(filePath: string): string {
+  let sep = path.sep;
+  if (isWindows()) {
+    sep += path.sep; // windows files paths are assumed to be escaped by node i.e. \\
+  }
+  const parsedPath = filePath.replace(/(\\\\)|(\/\/)|[\/\\]|(^.*:\\)/g, sep);
+  if (isWindows()) {
+    const prefix = parsedPath.substr(0, 2);
+    const root = path.parse(process.cwd()).root;
+    if (prefix === root) {
+      return parsedPath;
+    } else if (prefix === sep) {
+      return root + parsedPath.substr(2, parsedPath.length - 1);
+    } else {
+      return root + parsedPath;
+    }
+  } else {
+    return parsedPath;
+  }
+}
+
+function isWindows() {
+  return path.sep === path.win32.sep;
+}
+
+
+function getAssetItemFromPath(
+  assetType: AssetType,
+  filePath: string,
+  fileName?: string,
+  mediaType?: MediaType): BsAssetItem {
+
+  let bsAssetItem: BsAssetItem = fsGetAssetItemFromFile(filePath) as BsAssetItem;
+  if (isNil(bsAssetItem)) {
+    if (isNil(fileName)) {
+      fileName = getFileName(filePath);
+    }
+
+    let dummyAssetType: AssetType = assetType;
+
+    // TODO - what is the implication of setting a specific assetType in the call to
+    // bscAssetItemFromBasicAssetInfo? This may be relevant in the context of auxiliary files.
+    if (assetType === AssetType.Other) {
+      const bscFileTypeInfo: BscFileTypeInfo = bscGetBscFileTypeInfo(fileName);
+      dummyAssetType = bscFileTypeInfo.assetType;
+    }
+    bsAssetItem = createDummyAssetItem(dummyAssetType, fileName, filePath, mediaType);
+  }
+  return bsAssetItem;
+}
+
+
+function addImageItem(container: DmMediaStateContainer, state: any, isInteractive: boolean): Function {
+
+  return (dispatch: Function, getState: Function): any => {
+
+    const bsAssetItem = getAssetItemFromPath(AssetType.Content, state.imageItem.filePath, state.imageItem.fileName, MediaType.Image);
+
+    let addMediaStateThunkAction: BsDmThunkAction<MediaStateParams>;
+    if (isInteractive) {
+      addMediaStateThunkAction = dmAddMediaState(state.name, container, bsAssetItem,
+        {
+          defaultTransition: state.imageItem.transitionEffect.transitionType,
+          transitionDuration: state.imageItem.transitionEffect.transitionDuration,
+        });
+    }
+    else {
+      addMediaStateThunkAction = dmPlaylistAddMediaState(
+        -1,
+        container,
+        bsAssetItem,
+        {
+          contentData: {
+            defaultTransition: state.imageItem.transitionEffect.transitionType,
+            transitionDuration: state.imageItem.transitionEffect.transitionDuration,
+          }
+        }
+      );
+    }
+    const mediaStateAction: MediaStateAction = dispatch(addMediaStateThunkAction);
+    const mediaStateParams: MediaStateParams = mediaStateAction.payload;
+
+    return mediaStateParams.id;
+  };
+}
+
+function addVideoItem(
+  container: DmMediaStateContainer,
+  state: any,
+  isInteractive: boolean,
+): Function {
+
+  return (dispatch: Function, getState: Function): any => {
+
+    debugger;
+
+    const bsAssetItem = getAssetItemFromPath(AssetType.Content, state.videoItem.filePath, state.videoItem.fileName, MediaType.Video);
+
+    // const { name, automaticallyLoop, file, fileIsLocal, videoDisplayMode, volume } = state;
+    const videoContentItemData: DmVideoContentItemData = {
+      volume: 100,
+      videoDisplayMode: state.videoItem.videoDisplayMode,
+      automaticallyLoop: state.videoItem.automaticallyLoop,
+    };
+
+    let addMediaStateThunkAction: BsDmThunkAction<MediaStateParams>;
+    if (isInteractive) {
+      addMediaStateThunkAction = dmAddMediaState(state.name, container, bsAssetItem, videoContentItemData);
+    }
+    else {
+      addMediaStateThunkAction = dmPlaylistAddMediaState(
+        -1,
+        container,
+        bsAssetItem,
+        {
+          contentData: videoContentItemData,
+        }
+      );
+    }
+    const mediaStateAction: MediaStateAction = dispatch(addMediaStateThunkAction);
+    const mediaStateParams: MediaStateParams = mediaStateAction.payload;
+
+    return mediaStateParams.id;
+  };
+}
+
+function addStatesToZone(
+  mediaStateContainer: DmMediaStateContainer,
+  states: any[],
+  isInteractive: boolean): Function {
+
+  let mediaStateId: string;
+  const eventData: any[] = [];
+
+  const promises: Array<Promise<any>> = [];
+
+  return (dispatch: Function, getState: Function): any => {
+
+    // if (mediaStateContainer.type === MediaStateContainerType.Zone) {
+    // const zoneId: BsDmId = mediaStateContainer.id;
+    // const zone: DmcZone = dmGetZoneById(getState().bsdm, { id: zoneId });
+    // if (zone.type === ZoneType.Clock) {
+    //   dispatch(addClockItem(mediaStateContainer, (zone.properties as ClockZonePropertyParams).displayTime));
+    //   return Promise.resolve();
+    // }
+    // }
+
+    // empty zone
+    if (isNil(states)) {
+      return Promise.resolve([]);
+    }
+
+    states.forEach((state: any) => {
+      mediaStateId = '';
+      if (!isNil(state.imageItem)) {
+        promises.push(dispatch(addState(addImageItem, mediaStateContainer, state, isInteractive)));
+      } else if (!isNil(state.videoItem)) {
+        promises.push(dispatch(addState(addVideoItem, mediaStateContainer, state, isInteractive)));
+      }
+    });
+
+    return Promise.all(promises)
+      .then((statesData: any[]) => {
+        statesData.forEach((stateData: any) => {
+          const state = stateData.state;
+          const addedStateMediaStateId = stateData.mediaStateId;
+
+          switch (state.type) {
+            case 'imageItem':
+              eventData.push(createTimeoutEventData(addedStateMediaStateId, state.slideDelayInterval));
+              break;
+            // case 'html5Item':
+            // case 'liveVideoItem':
+            //   eventData.push(createTimeoutEventData(addedStateMediaStateId, Number(state.timeOnScreen)));
+            //   break;
+            // case 'mrssDataFeedItem':
+            case 'videoItem':
+              // case 'audioItem':
+              // case 'rssDataFeedPlaylistItem': {
+              eventData.push(createMediaEndEventData(addedStateMediaStateId));
+              break;
+            // }
+            // case 'audioStreamItem':
+            // case 'videoStreamItem':
+            // case 'mjpegStreamItem':
+            //   if (state.timeOnScreen === 0) {
+            //     eventData.push(createMediaEndEventData(addedStateMediaStateId));
+            //   }
+            //   else {
+            //     eventData.push(createTimeoutEventData(addedStateMediaStateId, state.timeOnScreen));
+            //   }
+            //   break;
+            default:
+              debugger;
+              break;
+          }
+
+          if (isInteractive) {
+
+            const bsdm: DmState = getState().bsdm;
+
+            state.brightSignEntryCommands.forEach((brightSignCommand: any) => {
+              dispatch(
+                buildCommand(
+                  bsdm,
+                  brightSignCommand,
+                  CommandSequenceType.StateEntry,
+                  addedStateMediaStateId));
+            });
+
+            state.brightSignExitCommands.forEach((brightSignCommand: any) => {
+              dispatch(
+                buildCommand(
+                  bsdm,
+                  brightSignCommand,
+                  CommandSequenceType.StateExit,
+                  addedStateMediaStateId));
+            });
+
+            // if (isNumber(state.x) && isNumber(state.y) &&
+            //   isString(addedStateMediaStateId) && addedStateMediaStateId.length > 0) {
+            //   baPeUiModelAddInteractiveCanvasState({
+            //     id: addedStateMediaStateId,
+            //     position: {
+            //       x: state.x,
+            //       y: state.y,
+            //     }
+            //   });
+            // }
+          }
+        });
+        return Promise.resolve(eventData);
+      });
+  };
+}
+
+
+
+// After the zones, states have been added, make a second pass to update those items that are dependent 
+// on the items that are added in the first pass...
+function executeSecondPass(arSign: ArSign) {
+  return (dispatch: Function, getState: Function): any => {
+    // dispatch(addPresentationDataFeeds());
+    // dispatch(setUserVariableDataFeeds(arSign.meta.userVariables));
+    // dispatch(addMediaCounterLiveTextItems());
+    // dispatch(updateUpdateDataFeedCommands());
+  };
+}
+
+export function buildCommand(
+  bsdm: DmState,
+  bpfCommand: any,
+  sequenceType: CommandSequenceType,
+  parentId: BsDmId): Function {
+
+  return (dispatch: Function): any => {
+
+    let command: DmCommand;
+
+    const commandType: CommandType = bpfCommandNameToCommandType(bpfCommand.name);
+    const commandDataParams: CommandDataParams = getCommandDataParams(bsdm, bpfCommand.operations);
+
+    let commandData: DmCommandData | null = null;
+    if (isNil(commandDataParams)) {
+      commandData = dmCreateCommandData(commandType);
+
+    } else {
+      commandData = dmCreateCommandData(commandType, commandDataParams);
+    }
+
+    if (!isNil(commandType)) {
+      if (isNil(commandData)) {
+        command = dmCreateCommand(commandType.toString(), commandType);
+      }
+      else {
+        command = dmCreateCommand(commandType.toString(), commandType, commandData);
+      }
+    }
+
+    if (!isNil(command)) {
+      const commandAddParams: CommandAddParams = dispatch(dmAddCommand(sequenceType, parentId, command));
+      debugger;
+      // addPendingCommand(bsdm, bpfCommand, converterSpec, commandType, commandDataParams, commandAddParams);
+    }
+  };
+}
+
+function bpfCommandNameToCommandType(bpfCommandName: string): CommandType {
+  if (!isString(bpfCommandName) || bpfCommandName.length === 0) {
+    debugger;
+  }
+  switch (bpfCommandName.toLowerCase()) {
+    case 'sendbpoutput':
+    case 'bp900aoutput':
+    case 'bp900boutput':
+    case 'bp900coutput':
+    case 'bp900doutput':
+    case 'bp200aoutput':
+    case 'bp200boutput':
+    case 'bp200coutput':
+    case 'bp200doutput':
+      return CommandType.SendBpOutput;
+    case 'setallaudiooutputs':
+      return CommandType.SetAllAudioOutputs;
+    case 'setaudiomode':
+      return CommandType.SetAudioMode;
+    case 'configureaudioresources':
+      return CommandType.ConfigureAudioResources;
+    case 'setconnectorvolume':
+      return CommandType.SetConnectorVolume;
+    case 'incrementconnectorvolume':
+      return CommandType.IncrementConnectorVolume;
+    case 'decrementconnectorvolume':
+      return CommandType.DecrementConnectorVolume;
+    case 'muteaudiooutputs':
+      return CommandType.MuteAudioOutputs;
+    case 'unmuteaudiooutputs':
+      return CommandType.UnmuteAudioOutputs;
+    case 'setzonevolume':
+      return CommandType.SetZoneVolume;
+    case 'incrementzonevolume':
+      return CommandType.IncrementZoneVolume;
+    case 'decrementzonevolume':
+      return CommandType.DecrementZoneVolume;
+    case 'setzonechannelvolume':
+      return CommandType.SetZoneChannelVolume;
+    case 'incrementzonechannelvolume':
+      return CommandType.IncrementZoneChannelVolume;
+    case 'decrementzonechannelvolume':
+      return CommandType.DecrementZoneChannelVolume;
+    case 'sendzonemessage':
+      return CommandType.SendZoneMessage;
+    case 'sendudp':
+      return CommandType.SendUdp;
+    case 'sendudpbytes':
+      return CommandType.SendUdpBytes;
+    case 'sendirremote':
+      return CommandType.SendIRRemote;
+    case 'sendprontoirremote':
+      return CommandType.SendProntoIRRemote;
+    case 'serialsendstring':
+    case 'serialsendstringcr':
+    case 'serialsendstringnocr':
+      return CommandType.SerialSendString;
+    case 'serialsendbyte':
+      return CommandType.SerialSendByte;
+    case 'serialsendbytes':
+      return CommandType.SerialSendBytes;
+    case 'sendpluginmessage':
+      return CommandType.SendPluginMessage;
+    case 'synchronize':
+      return CommandType.Synchronize;
+    case 'internalsynchronize':
+      return CommandType.InternalSynchronize;
+    case 'gpioon':
+      return CommandType.GpioOn;
+    case 'gpiooff':
+      return CommandType.GpioOff;
+    case 'gpiosetstate':
+      return CommandType.GpioSetState;
+    case 'pausevideo':
+      return CommandType.PauseVideo;
+    case 'resumevideo':
+      return CommandType.ResumeVideo;
+    case 'enablepowersavemode':
+      return CommandType.EnablePowerSaveMode;
+    case 'disablepowersavemode':
+      return CommandType.DisablePowerSaveMode;
+    case 'brightcontroldisplayon':
+    case 'cecdisplayon':
+      return CommandType.CecDisplayOn;
+    case 'brightcontroldisplayoff':
+    case 'cecdisplayoff':
+      return CommandType.CecDisplayOff;
+    case 'brightcontrolsetsourcebrightsign':
+    case 'cecsetsourcetobrightsign':
+      return CommandType.CecSetSourceToBrightSign;
+    case 'brightcontrolsendasciistring':
+    case 'cecsendstring':
+      return CommandType.CecSendString;
+    case 'brightcontrolphilipssetvolume':
+    case 'cecphilipssetvolume':
+      return CommandType.CecPhilipsSetVolume;
+    case 'beaconstart':
+      return CommandType.BeaconStart;
+    case 'beaconstop':
+      return CommandType.BeaconStop;
+    case 'pause':
+      return CommandType.Pause;
+    case 'resume':
+      return CommandType.Resume;
+    case 'setvariable':
+      return CommandType.SetVariable;
+    case 'incrementvariable':
+      return CommandType.IncrementVariable;
+    case 'decrementvariable':
+      return CommandType.DecrementVariable;
+    case 'resetvariable':
+      return CommandType.ResetVariable;
+    case 'resetvariables':
+      return CommandType.ResetVariables;
+    case 'switchpresentation':
+      return CommandType.SwitchPresentation;
+    case 'updatedatafeed':
+      return CommandType.UpdateDataFeed;
+    case 'resizezone':
+      return CommandType.ResizeZone;
+    case 'hidezone':
+      return CommandType.HideZone;
+    case 'showzone':
+      return CommandType.ShowZone;
+    case 'reboot':
+      return CommandType.Reboot;
+    case 'sendwss':
+      return CommandType.SendWss;
+    case 'blc400a':
+    case 'blc400b':
+    case 'blc400c':
+      return CommandType.SendBLC400Output;
+    default:
+      debugger;
+  }
+}
+
+function getCommandDataParams(bsdm: DmState, operations: any[]): CommandDataParams {
+  let commandDataParams: CommandDataParams = {};
+  operations.forEach((operation: any) => {
+    switch (operation.name) {
+      // no parameter operations
+      case BACommandNames.BaConfigureAudioResources:
+      case BACommandNames.BaResetVariables:
+      case BACommandNames.BaCecDisplayOn:
+      case BACommandNames.BaCecDisplayOff:
+      case BACommandNames.BaCecSetSourceBrightSign:
+      case BACommandNames.BaBrightControlDisplayOn:
+      case BACommandNames.BaBrightControlDisplayOff:
+      case BACommandNames.BaBrightControlSetSourceBrightSign:
+      case BACommandNames.BaDisablePowerSaveMode:
+      case BACommandNames.BaEnablePowerSaveMode:
+      case BACommandNames.BaPauseVideoCommand:
+      case BACommandNames.BaReboot:
+      case BACommandNames.BaResumeVideoCommand:
+        break;
+      case BACommandNames.BaCecPhilipsSetVolume:
+      // case BACommandNames.BaBrightControlPhilipsSetVolume:
+      //   commandDataParams = getCecSetVolumeParams(bsdm, commandDataParams, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaSetAllAudioOutputs:
+      //   commandDataParams = getSetAllAudioOutputsParams(bsdm, commandDataParams, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaSetAudioMode:
+      //   commandDataParams = getSetAudioModeParams(bsdm, commandDataParams, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaCecSendString:
+      // case BACommandNames.BaBrightControlSendAsciiString:
+      //   commandDataParams = getCecSendStringCommandParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaSendIRRemote:
+      //   commandDataParams = getSendIRRemoteCommandParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaSendPluginMessage:
+      //   commandDataParams = getSendPluginMessageCommandParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaSendSerialBlockCommand:
+      //   commandDataParams = getSendSerialStringNoEolCommandParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaSendSerialByteCommand:
+      //   commandDataParams = getSendSerialByteCommandParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaSendSerialBytesCommand:
+      //   commandDataParams = getSendSerialBytesCommandParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaSendSerialStringCommand:
+      //   commandDataParams = getSendSerialStringWithEolCommandParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaSendUDPBytesCommand:
+      //   commandDataParams = getSendUdpBytesCommandParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaSendUDPCommand:
+      //   commandDataParams = getSendUdpCommandParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaGpioOffCommand:
+      //   commandDataParams = getGpioOffCommandParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaGpioOnCommand:
+      //   commandDataParams = getGpioOnCommandParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaIncrementZoneVolume:
+      //   commandDataParams = getIncrementZoneVolumeCommandParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaDecrementZoneVolume:
+      //   commandDataParams = getDecrementZoneVolumeCommandParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaGpioSetStateCommand:
+      //   commandDataParams = getGpioSetStateCommandParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaSendZoneMessage:
+      //   commandDataParams = getSendZoneMessageCommandParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaSetZoneVolume:
+      //   commandDataParams = getSetZoneVolumeCommandParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaSendBPOutput:
+      //   commandDataParams = getSendBpOutputCommandParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaSynchronize:
+      //   commandDataParams = getSynchronizeCommandParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaPause:
+      //   commandDataParams = getPauseCommandParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaSetConnectorVolume:
+      //   commandDataParams = getSetConnectorVolumeCommandParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaSetVariable:
+      //   commandDataParams = getSetVariableCommandParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaSendWss:
+      //   commandDataParams = getSendWssParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaBeaconStart:
+      //   commandDataParams = getBeaconStartParams(bsdm, operation.parameters);
+      //   break;
+      // case BACommandNames.BaBeaconStop:
+      //   commandDataParams = getBeaconStopParams(bsdm, operation.parameters);
+      //   break;
+      // case BACommandNames.BaDecrementConnectorVolume:
+      //   commandDataParams = getDecrementConnectorVolumeParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaDecrementVariable:
+      //   commandDataParams = getDecrementVariableParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaDecrementZoneChannelVolume:
+      //   commandDataParams = getDecrementZoneChannelVolumeParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaHideZone:
+      //   commandDataParams = getHideZoneParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaIncrementConnectorVolume:
+      //   commandDataParams = getIncrementConnectorVolumeParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaIncrementVariable:
+      //   commandDataParams = getIncrementVariableParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaIncrementZoneChannelVolume:
+      //   commandDataParams = getIncrementZoneChannelVolumeParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaInternalSynchronize:
+      //   commandDataParams = getInternalSynchronizeParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaMuteAudioOutputs:
+      //   commandDataParams = getMuteAudioOutputsParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaResetVariable:
+      //   commandDataParams = getResetVariableParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaResizeZone:
+      //   commandDataParams = getResizeZoneParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaSendBLC400Output:
+      //   commandDataParams = getSendBLC400OutputParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaSendProntoIRRemote:
+      //   commandDataParams = getSendProntoIRRemoteParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaSetZoneChannelVolume:
+      //   commandDataParams = getSetZoneChannelVolumeParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaShowZone:
+      //   commandDataParams = getShowZoneParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaSwitchPresentation:
+      //   commandDataParams = getSwitchPresentationParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaUnmuteAudioOutputs:
+      //   commandDataParams = getUnmuteAudioOutputsParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      // case BACommandNames.BaUpdateDataFeed:
+      //   commandDataParams = getUpdateDataFeedParams(bsdm, operation.parameters, converterSpec);
+      //   break;
+      default:
+        debugger;
+    }
+  });
+
+  return commandDataParams;
+}
+
+function createDummyAssetItem(assetType: AssetType, fileName: string, filePath: string, mediaType?: MediaType) {
+  const stub: undefined = undefined; // stub out optional fields with undefined placeholder for dummy asset item
+  const homePath = getAbsoluteHomePath();
+  return bscAssetItemFromBasicAssetInfo(assetType, fileName, homePath, stub, mediaType, stub, filePath);
+}
+
+export function getAbsoluteHomePath() {
+  return os.homedir();
+}
 
 
