@@ -46,34 +46,7 @@ import {
   DmcEvent,
 } from '@brightsign/bsdatamodel';
 
-export interface Autoplay {
-  BrightAuthor: BrightAuthorHeader;
-}
-
-export interface BrightAuthorHeader {
-  BrightAuthorConnectedVersion: string;
-  meta: AutoplayMetadata;
-  screens: any[];
-  type: string;
-  version: number;
-  zones: any[];
-};
-
-export interface AutoplayMetadata {
-  id: string;
-  model: string;
-  name: string;
-  videoMode: string;
-};
-
 export type StringToStringDictionary = { [name: string]: string };
-
-export interface BpfConversionParameters {
-  presentationName: string;
-  desktopConversion: boolean;
-  buffer: any;
-  updateToCompatibleBsModel: boolean;
-}
 
 export interface BaBaseDataFeedSourceSpecification {
   name: string;

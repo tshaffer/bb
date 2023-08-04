@@ -6,7 +6,7 @@ import { composeWithDevTools } from 'redux-devtools-extension';
 
 import { bsDmReducer } from '@brightsign/bsdatamodel';
 import { generateBpfx } from './bpfxGenerator';
-import { ArAutoplay, ArSign, Autoplay } from './types';
+import { ArAutoplay } from './types';
 
 console.log('Hello world!')
 
