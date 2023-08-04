@@ -1,8 +1,8 @@
 import { isNil } from 'lodash';
-import { AssetType, BsIrRemoteControl, BsRect, DeviceWebPageDisplay, GpioType, GraphicsZOrderType, ImageModeType, IrReceiverSource, IrRemoteModel, IrTransmitterDestination, PlayerModel, VideoMode, ZoneLayerType, ZoneType, bscAssetItemFromBasicAssetInfo, bscGetIrRemoteControl, getEnumKeyOfValue } from '@brightsign/bscore';
-import { AudioSignPropertyMapParams, BsDmId, BsDmThunkAction, DmAudioSignProperties, DmAudioSignPropertyMap, DmGpioList, DmImageZoneProperties, DmImageZonePropertyData, DmSignMetadata, DmSignProperties, DmSignState, DmState, DmVideoZoneProperties, DmZoneLayerIdParams, SignAction, SignParams, VideoOrImagesZonePropertyParams, ZoneAddAction, ZoneAddInputParams, ZoneAddParams, ZonePropertyUpdateParams, dmAddZone, dmGetSignState, dmGetZoneLayerIdByTypeAndIndex, dmNewSign, dmSetPresentationWebPage, dmUpdateSignAudioPropertyMap, dmUpdateSignGpio, dmUpdateSignIrInConfiguration, dmUpdateSignIrOutConfiguration, dmUpdateSignIrRemoteControl, dmUpdateSignProperties, dmUpdateZoneProperties } from "@brightsign/bsdatamodel";
+import { AssetType, AudioMixModeType, BsIrRemoteControl, BsRect, DeviceWebPageDisplay, GpioType, GraphicsZOrderType, ImageModeType, IrReceiverSource, IrRemoteModel, IrTransmitterDestination, PlayerModel, VideoMode, ZoneLayerType, ZoneType, bscAssetItemFromBasicAssetInfo, bscGetIrRemoteControl, getEnumKeyOfValue } from '@brightsign/bscore';
+import { AudioSignPropertyMapParams, BsDmId, BsDmThunkAction, DmAudioOutputAssignmentMap, DmAudioSignProperties, DmAudioSignPropertyMap, DmAudioZonePropertyData, DmEntityType, DmGpioList, DmImageZoneProperties, DmImageZonePropertyData, DmSignMetadata, DmSignProperties, DmSignState, DmState, DmVideoZoneProperties, DmVideoZonePropertyData, DmZoneLayerIdParams, SignAction, SignParams, VideoOrImagesZonePropertyParams, ZoneAddAction, ZoneAddInputParams, ZoneAddParams, ZonePropertyUpdateParams, dmAddZone, dmGetSignState, dmGetZoneLayerIdByTypeAndIndex, dmNewSign, dmSetPresentationWebPage, dmUpdateSignAudioPropertyMap, dmUpdateSignGpio, dmUpdateSignIrInConfiguration, dmUpdateSignIrOutConfiguration, dmUpdateSignIrRemoteControl, dmUpdateSignProperties, dmUpdateZoneProperties } from "@brightsign/bsdatamodel";
 import { LiveDataFeed } from './baInterfaces';
-import { ArSign, ArSignMetadata, ArVideoOrImagesZone, ArVideoOrImagesZoneProperties, ArVideoZonePropertyData, ArZone, AutoplayMetadata, BrightAuthorHeader } from './types';
+import { ArSign, ArSignMetadata, ArVideoOrImagesZone, ArVideoOrImagesZoneProperties, ArVideoZonePropertyData, ArZone, AutoplayMetadata, BpfConverterSpec, BrightAuthorHeader } from './types';
 
 export const generateBpfx = (autoplay: ArSign): any => {
   return (dispatch: Function, getState: any): any => {
@@ -424,6 +424,8 @@ export const addAllZones = (zones: ArZone[]): any => {
       zoneIds.push(zoneId);
     });
 
+    // set z order of zone layers
+    console.log('pizza');
   };
 };
 
@@ -484,25 +486,100 @@ const setVideoOrImagesZoneSpecificProperties = (arZone: ArVideoOrImagesZone, zon
     };
     const imageZoneProperties: DmImageZoneProperties = imageZonePropertyData;
 
-    // const audioZonePropertyData = getAudioZonePropertyData(zoneSpecificParameters);
+    const audioZonePropertyData: DmAudioZonePropertyData = getAudioZonePropertyData(zoneSpecificParameters);
 
-    // const videoZonePropertyData = getVideoZonePropertyData(zoneSpecificParameters);
+    const videoZonePropertyData = getVideoZonePropertyData(zoneSpecificParameters);
 
-    // const videoZoneProperties: DmVideoZoneProperties =
-    //   Object.assign({}, videoZonePropertyData, audioZonePropertyData);
+    const videoZoneProperties: DmVideoZoneProperties =
+      Object.assign({}, videoZonePropertyData, audioZonePropertyData);
 
-    // const zonePropertyParams: VideoOrImagesZonePropertyParams =
-    //   Object.assign({}, videoZoneProperties, imageZoneProperties);
+    const zonePropertyParams: VideoOrImagesZonePropertyParams =
+      Object.assign({}, videoZoneProperties, imageZoneProperties);
 
-    // const zonePropertyUpdateParams: ZonePropertyUpdateParams = {
-    //   id: zoneId,
-    //   type: ZoneType.VideoOrImages,
-    //   properties: zonePropertyParams
-    // };
-    // const updateZonePropertyThunkAction: BsDmThunkAction<ZonePropertyUpdateParams> =
-    //   dmUpdateZoneProperties(zonePropertyUpdateParams);
-    // dispatch(updateZonePropertyThunkAction);
+    const zonePropertyUpdateParams: ZonePropertyUpdateParams = {
+      id: zoneId,
+      type: ZoneType.VideoOrImages,
+      properties: zonePropertyParams
+    };
+    const updateZonePropertyThunkAction: BsDmThunkAction<ZonePropertyUpdateParams> =
+      dmUpdateZoneProperties(zonePropertyUpdateParams);
+    dispatch(updateZonePropertyThunkAction);
   };
+}
+
+function getAudioZonePropertyData(
+  zoneSpecificParameters: any,
+): DmAudioZonePropertyData {
+
+  const audioOutputAssignmentMap: DmAudioOutputAssignmentMap =
+    buildAudioOutputAssignmentMap(zoneSpecificParameters);
+
+  const audioZonePropertyData: DmAudioZonePropertyData = {
+    audioOutput: zoneSpecificParameters.audioOutput,
+    audioMode: zoneSpecificParameters.audioMode,
+    audioMapping: zoneSpecificParameters.audioMapping,
+    audioOutputAssignments: audioOutputAssignmentMap,
+    audioMixMode: zoneSpecificParameters.audioMixMode,
+    audioVolume: zoneSpecificParameters.audioVolume,
+    minimumVolume: zoneSpecificParameters.minimumVolume,
+    maximumVolume: zoneSpecificParameters.maximumVolume,
+  };
+
+  return audioZonePropertyData;
+}
+
+function buildAudioOutputAssignmentMap(zoneSpecificParameters: any): DmAudioOutputAssignmentMap {
+
+  const bpfAudioOutputs: string[] = [
+    'analogOutput',
+    'hdmiOutput',
+    'spdifOutput',
+    'usbOutputTypeA',
+    'usbOutputTypeC',
+    'usbOutput700_1',
+    'usbOutput700_2',
+    'usbOutput700_3',
+    'usbOutput700_4',
+    'usbOutput700_5',
+    'usbOutput700_6',
+    'usbOutput700_7',
+  ];
+
+  const bpfxAudioOutputs: string[] = [
+    'analog1',
+    'hdmi',
+    'spdif',
+    'usbTypeA',
+    'usbTypeC',
+    'usb700_1',
+    'usb700_2',
+    'usb700_3',
+    'usb700_4',
+    'usb700_5',
+    'usb700_6',
+    'usb700_7',
+  ];
+
+  const audioOutputAssignments: DmAudioOutputAssignmentMap = {};
+
+  for (let i = 0; i < bpfAudioOutputs.length; i++) {
+    audioOutputAssignments[bpfxAudioOutputs[i]] =
+      zoneSpecificParameters[bpfAudioOutputs[i]];
+  }
+
+  return audioOutputAssignments;
+}
+
+function getVideoZonePropertyData(zoneSpecificParameters: any):
+  DmVideoZonePropertyData {
+
+  const videoZonePropertyData: DmVideoZonePropertyData = {
+    viewMode: zoneSpecificParameters.viewMode,
+    videoVolume: zoneSpecificParameters.videoVolume,
+    maxContentResolution: zoneSpecificParameters.maxContentResolution,
+  };
+
+  return videoZonePropertyData;
 }
 
 
