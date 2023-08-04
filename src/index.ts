@@ -5,8 +5,19 @@ import thunk from 'redux-thunk';
 import { composeWithDevTools } from 'redux-devtools-extension';
 
 import { bsDmReducer } from '@brightsign/bsdatamodel';
+import {
+  BsBpfxState,
+  BsBpfxInteractiveCanvasState,
+  BsBpfxScreenLayoutSettingsState,
+  BsBpfxSelectionState,
+  BsBpfxPropertiesSelectables,
+  BsBpfxAssetMenuTab,
+  BsBpfxEventMenuState,
+  BsBpfxLiveTextState
+} from '@brightsign/bacon-core';
 import { generateBpfx } from './bpfxGenerator';
 import { ArAutoplay } from './types';
+import { ContentItemType } from '@brightsign/bscore';
 
 console.log('Hello world!')
 
@@ -36,6 +47,55 @@ const autoplay: ArAutoplay = JSON.parse(autoplayFile.toString());
 
 const promise: Promise<any> = store.dispatch(generateBpfx(autoplay.BrightAuthor));
 promise.then( (bpfData: any) => {
-  debugger;
-  console.log(bpfData);
+  const bpfxState: BsBpfxState = createProjectFileStateFromState(bpfData);
+  console.log(bpfxState);
 })
+
+const eventMenuState: BsBpfxEventMenuState = {
+  isOpen: true,
+  showTitles: true
+};
+
+const selectionState : BsBpfxSelectionState = {
+  hovered: null,
+  selectionContainer: {
+    id: BsBpfxPropertiesSelectables.PRESENTATION,
+    // FIXME: this seems really wrong, the type property is declared as a ContentItemType!
+    type: BsBpfxPropertiesSelectables.PRESENTATION as ContentItemType,
+    selectableType: BsBpfxPropertiesSelectables.PRESENTATION,
+  },
+  selectionEntities: {},
+  isEventAdvancedEnabled: false,
+  activeAssetMenuTab: BsBpfxAssetMenuTab.ASSETS,
+  prevSelectionEntities: {}
+};
+
+const interactiveCanvasState: BsBpfxInteractiveCanvasState = {
+  statePositionById: {},
+  eventDataById: {},
+  viewTransformByZoneId: {},
+  isLoaderEnabled: false,
+};
+
+const liveTextState: BsBpfxLiveTextState = {};
+
+const screenLayoutSettings: BsBpfxScreenLayoutSettingsState = {
+  selectedLayoutId: null,
+  screenCount: null,
+  selectedBezel: null,
+  isLayoutBoundaryToggled: false,
+  isSnapToCanvasToggled: false,
+};
+
+
+const createProjectFileStateFromState = (state: any): BsBpfxState => {
+  return {
+    bsdm: state.bsdm,
+    interactiveCanvas: interactiveCanvasState,
+    selection: selectionState,
+    eventMenu: eventMenuState,
+    liveText: liveTextState,
+    screenLayoutSettings: screenLayoutSettings,
+  };
+};
+

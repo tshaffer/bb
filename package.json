@@ -21,6 +21,7 @@
     "typescript": "^5.1.6"
   },
   "dependencies": {
+    "@brightsign/bacon-core": "^0.2.1",
     "@brightsign/bscore": "^1.6.0",
     "@brightsign/bsdatamodel": "^1.4.0",
     "@brightsign/fsconnector": "^1.3.0",
