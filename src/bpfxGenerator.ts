@@ -8,7 +8,7 @@ import { fsGetAssetItemFromFile } from '@brightsign/fsconnector';
 import { AssetType, BsAssetItem, BsIrRemoteControl, BsRect, BscFileTypeInfo, CommandSequenceType, CommandType, EventType, GpioType, GraphicsZOrderType, ImageModeType, IrReceiverSource, IrRemoteModel, IrTransmitterDestination, MediaType, PlayerModel, VideoMode, ZoneLayerType, ZoneType, bscAssetItemFromBasicAssetInfo, bscGetBscFileTypeInfo, bscGetIrRemoteControl, getEnumKeyOfValue } from '@brightsign/bscore';
 import { BsDmId, BsDmThunkAction, CommandAddParams, CommandDataParams, DmAudioOutputAssignmentMap, DmAudioSignProperties, DmAudioSignPropertyMap, DmAudioZonePropertyData, DmCommand, DmCommandData, DmGpioList, DmImageZoneProperties, DmImageZonePropertyData, DmMediaStateContainer, DmSignMetadata, DmSignProperties, DmSignState, DmState, DmVideoContentItemData, DmVideoZoneProperties, DmVideoZonePropertyData, DmZoneLayerIdParams, DmcEvent, DmcMediaState, EventParams, MediaStateAction, MediaStateParams, SignAction, SignParams, VideoOrImagesZonePropertyParams, ZoneAddAction, ZoneAddInputParams, ZoneAddParams, ZonePropertyUpdateParams, dmAddCommand, dmAddMediaState, dmAddZone, dmCreateCommand, dmCreateCommandData, dmGetEventById, dmGetEventIdsForMediaState, dmGetMediaStateById, dmGetMediaStateIdsForProps, dmGetSignState, dmGetZoneLayerIdByTypeAndIndex, dmGetZoneLayerSequence, dmGetZoneMediaStateContainer, dmMoveZoneLayersAtIndices, dmNewSign, dmPlaylistAddMediaState, dmUpdateEvent, dmUpdateSignGpio, dmUpdateSignIrInConfiguration, dmUpdateSignIrOutConfiguration, dmUpdateSignIrRemoteControl, dmUpdateSignProperties, dmUpdateZoneProperties } from "@brightsign/bsdatamodel";
 import { BACommandNames, LiveDataFeed } from './baInterfaces';
-import { ArSign, ArSignMetadata, ArVideoOrImagesZone, ArVideoOrImagesZoneProperties, ArVideoZonePropertyData, ArZone } from './types';
+import { AddedArPlaylistState, ArImagePlaylistItem, ArMediaPlaylistItem, ArPlayFileItemContentItem, ArPlaylistState, ArSign, ArSignMetadata, ArVideoItem, ArVideoOrImagesZone, ArVideoOrImagesZoneProperties, ArVideoZonePropertyData, ArZone } from './types';
 
 export const generateBpfx = (arSign: ArSign): any => {
   return (dispatch: Function, getState: any) => {
@@ -45,8 +45,10 @@ export const generateBpfx = (arSign: ArSign): any => {
 
     const zoneIds: string[] = dispatch(addAllZones(arSign.zones));
     const promise: any = dispatch(buildZonePlaylists(arSign, zoneIds));
-    return promise;
-
+    return promise
+      .then( () => {
+        return Promise.resolve(getState());
+      });
   }
 };
 
@@ -725,7 +727,7 @@ function buildZonePlaylist(arZone: ArZone, zoneId: BsDmId): Function {
 
 function addState(
   addItem: Function,
-  mediaStateContainer: any, state: any, isInteractive: boolean): Function {
+  mediaStateContainer: any, state: ArPlaylistState, isInteractive: boolean): Function {
   return (dispatch: Function, getState: Function): any => {
     const mediaStateId = dispatch(addItem(mediaStateContainer, state, isInteractive));
     return Promise.resolve(
@@ -816,18 +818,18 @@ function getAssetItemFromPath(
 }
 
 
-function addImageItem(container: DmMediaStateContainer, state: any, isInteractive: boolean): Function {
+function addImageItem(container: DmMediaStateContainer, imagePlaylistItem: ArImagePlaylistItem, isInteractive: boolean): Function {
 
   return (dispatch: Function, getState: Function): any => {
 
-    const bsAssetItem = getAssetItemFromPath(AssetType.Content, state.imageItem.filePath, state.imageItem.fileName, MediaType.Image);
+    const bsAssetItem = getAssetItemFromPath(AssetType.Content, imagePlaylistItem.filePath, imagePlaylistItem.fileName, MediaType.Image);
 
     let addMediaStateThunkAction: BsDmThunkAction<MediaStateParams>;
     if (isInteractive) {
-      addMediaStateThunkAction = dmAddMediaState(state.name, container, bsAssetItem,
+      addMediaStateThunkAction = dmAddMediaState(imagePlaylistItem.fileName, container, bsAssetItem,
         {
-          defaultTransition: state.imageItem.transitionEffect.transitionType,
-          transitionDuration: state.imageItem.transitionEffect.transitionDuration,
+          defaultTransition: imagePlaylistItem.transitionEffect.transitionType,
+          transitionDuration: imagePlaylistItem.transitionEffect.transitionDuration,
         });
     }
     else {
@@ -837,8 +839,8 @@ function addImageItem(container: DmMediaStateContainer, state: any, isInteractiv
         bsAssetItem,
         {
           contentData: {
-            defaultTransition: state.imageItem.transitionEffect.transitionType,
-            transitionDuration: state.imageItem.transitionEffect.transitionDuration,
+            defaultTransition: imagePlaylistItem.transitionEffect.transitionType,
+            transitionDuration: imagePlaylistItem.transitionEffect.transitionDuration,
           }
         }
       );
@@ -852,23 +854,23 @@ function addImageItem(container: DmMediaStateContainer, state: any, isInteractiv
 
 function addVideoItem(
   container: DmMediaStateContainer,
-  state: any,
+  videoPlaylistItem: ArVideoItem,
   isInteractive: boolean,
 ): Function {
 
   return (dispatch: Function, getState: Function): any => {
 
-    const bsAssetItem = getAssetItemFromPath(AssetType.Content, state.videoItem.filePath, state.videoItem.fileName, MediaType.Video);
+    const bsAssetItem = getAssetItemFromPath(AssetType.Content, videoPlaylistItem.filePath, videoPlaylistItem.fileName, MediaType.Video);
 
     const videoContentItemData: DmVideoContentItemData = {
       volume: 100,
-      videoDisplayMode: state.videoItem.videoDisplayMode,
-      automaticallyLoop: state.videoItem.automaticallyLoop,
+      videoDisplayMode: videoPlaylistItem.videoDisplayMode,
+      automaticallyLoop: videoPlaylistItem.automaticallyLoop,
     };
 
     let addMediaStateThunkAction: BsDmThunkAction<MediaStateParams>;
     if (isInteractive) {
-      addMediaStateThunkAction = dmAddMediaState(state.name, container, bsAssetItem, videoContentItemData);
+      addMediaStateThunkAction = dmAddMediaState(videoPlaylistItem.fileName, container, bsAssetItem, videoContentItemData);
     }
     else {
       addMediaStateThunkAction = dmPlaylistAddMediaState(
@@ -889,7 +891,7 @@ function addVideoItem(
 
 function addStatesToZone(
   mediaStateContainer: DmMediaStateContainer,
-  states: any[],
+  states: ArPlaylistState[],
   isInteractive: boolean): Function {
 
   let mediaStateId: string;
@@ -907,23 +909,22 @@ function addStatesToZone(
     states.forEach((state: any) => {
       mediaStateId = '';
       if (!isNil(state.imageItem)) {
-        promises.push(dispatch(addState(addImageItem, mediaStateContainer, state, isInteractive)));
+        promises.push(dispatch(addState(addImageItem, mediaStateContainer, state.imageItem, isInteractive)));
       } else if (!isNil(state.videoItem)) {
-        promises.push(dispatch(addState(addVideoItem, mediaStateContainer, state, isInteractive)));
+        promises.push(dispatch(addState(addVideoItem, mediaStateContainer, state.videoItem, isInteractive)));
       }
     });
 
     return Promise.all(promises)
-      .then((statesData: any[]) => {
-        statesData.forEach((stateData: any) => {
-          const state = stateData.state;
+      .then((statesData: AddedArPlaylistState[]) => {
+        statesData.forEach((stateData: AddedArPlaylistState) => {
+          const state: ArPlaylistState = stateData.state;
           const addedStateMediaStateId = stateData.mediaStateId;
 
-          debugger;
-
-          if (!isNil(state.imageItem)) {
-            eventData.push(createTimeoutEventData(addedStateMediaStateId, state.slideDelayInterval));
-          } else if (!isNil(state.videoItem)) {
+          if (state.type === 'image') {
+            // eventData.push(createTimeoutEventData(addedStateMediaStateId, (state as ArImagePlaylistItem).slideDelayInterval));
+            eventData.push(createTimeoutEventData(addedStateMediaStateId, 6.0));
+          } else if (state.type === 'video') {
             eventData.push(createMediaEndEventData(addedStateMediaStateId));
           } else {
             debugger;

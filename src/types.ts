@@ -86,7 +86,7 @@ export type DataFeedDictionary = { [name: string]: BaDataFeedSpecification };
 
 export type DataFeedInUseDictionary = { [name: string]: boolean };
 
-export type UpdateDataFeedCommandDictionary = { [id: string ]: string };
+export type UpdateDataFeedCommandDictionary = { [id: string]: string };
 
 export interface BpfConverterSpec {
   updateDataFeedCommandsDictionary: UpdateDataFeedCommandDictionary;
@@ -131,7 +131,7 @@ export interface MediaCounterTextTemplateItem extends BaseTextTemplateItem {
   fileName: string;
 }
 
-export interface MediaCounterSimple extends BaseTextTemplateItemSimple  {
+export interface MediaCounterSimple extends BaseTextTemplateItemSimple {
   fileName: string;
 }
 
@@ -508,6 +508,11 @@ export interface ArRssDataFeedItem extends ArState {
 }
 
 export type ArPlayFileItemContentItem = ArImagePlaylistItem | ArVideoItem | ArAudioItem | {};
+
+export interface AddedArPlaylistState {
+  state: ArPlaylistState,
+  mediaStateId: BsDmId,
+}
 
 export interface ArPlayFileItemItem {
   contentItem: ArPlayFileItemContentItem;

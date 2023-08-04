@@ -31,14 +31,11 @@ const autoPlayFilePath = process.argv[2];
 console.log('autoplay file path: ' + autoPlayFilePath);
 
 const autoplayFile: Buffer = fs.readFileSync(autoPlayFilePath);
-// console.log('autoplay file: ' + autoplayFile);
 
 const autoplay: ArAutoplay = JSON.parse(autoplayFile.toString());
-// console.log('autoplay: ' + autoplay);
 
-store.dispatch(generateBpfx(autoplay.BrightAuthor));
-
-// const autoplayStr = JSON.stringify(autoplay, null, 4); // (Optional) beautiful indented output.
-// console.log(autoplayStr); // Logs output to dev tools console.
-
-
+const promise: Promise<any> = store.dispatch(generateBpfx(autoplay.BrightAuthor));
+promise.then( (bpfData: any) => {
+  debugger;
+  console.log(bpfData);
+})
