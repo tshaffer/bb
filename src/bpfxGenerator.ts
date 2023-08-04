@@ -5,10 +5,10 @@ import { isNil, isString } from 'lodash';
 
 import { fsGetAssetItemFromFile } from '@brightsign/fsconnector';
 
-import { AssetType, BsAssetItem, BsIrRemoteControl, BsRect, BscFileTypeInfo, CommandSequenceType, CommandType, EventType, GpioType, GraphicsZOrderType, ImageModeType, IrReceiverSource, IrRemoteModel, IrTransmitterDestination, MediaType, PlayerModel, VideoMode, ZoneLayerType, ZoneType, bscAssetItemFromBasicAssetInfo, bscGetBscFileTypeInfo, bscGetIrRemoteControl, getEnumKeyOfValue } from '@brightsign/bscore';
-import { BsDmId, BsDmThunkAction, CommandAddParams, CommandDataParams, DmAudioOutputAssignmentMap, DmAudioSignProperties, DmAudioSignPropertyMap, DmAudioZonePropertyData, DmCommand, DmCommandData, DmGpioList, DmImageZoneProperties, DmImageZonePropertyData, DmMediaStateContainer, DmSignMetadata, DmSignProperties, DmSignState, DmState, DmVideoContentItemData, DmVideoZoneProperties, DmVideoZonePropertyData, DmZoneLayerIdParams, DmcEvent, DmcMediaState, EventParams, MediaStateAction, MediaStateParams, SignAction, SignParams, VideoOrImagesZonePropertyParams, ZoneAddAction, ZoneAddInputParams, ZoneAddParams, ZonePropertyUpdateParams, dmAddCommand, dmAddMediaState, dmAddZone, dmCreateCommand, dmCreateCommandData, dmGetEventById, dmGetEventIdsForMediaState, dmGetMediaStateById, dmGetMediaStateIdsForProps, dmGetSignState, dmGetZoneLayerIdByTypeAndIndex, dmGetZoneLayerSequence, dmGetZoneMediaStateContainer, dmMoveZoneLayersAtIndices, dmNewSign, dmPlaylistAddMediaState, dmUpdateEvent, dmUpdateSignGpio, dmUpdateSignIrInConfiguration, dmUpdateSignIrOutConfiguration, dmUpdateSignIrRemoteControl, dmUpdateSignProperties, dmUpdateZoneProperties } from "@brightsign/bsdatamodel";
+import { AssetType, BsAssetIdNone, BsAssetItem, BsColor, BsIrRemoteControl, BsRect, BscFileTypeInfo, CommandSequenceType, CommandType, EventType, GpioType, GraphicsZOrderType, ImageModeType, IrReceiverSource, IrRemoteModel, IrTransmitterDestination, MediaType, PlayerModel, RotationType, TextHAlignmentType, TextScrollingMethodType, VideoMode, ZoneLayerType, ZoneType, bscAssetItemFromBasicAssetInfo, bscGetBscFileTypeInfo, bscGetIrRemoteControl, getEnumKeyOfValue } from '@brightsign/bscore';
+import { BsDmId, BsDmThunkAction, CommandAddParams, CommandDataParams, DmAudioOutputAssignmentMap, DmAudioSignProperties, DmAudioSignPropertyMap, DmAudioZonePropertyData, DmCommand, DmCommandData, DmGpioList, DmImageZoneProperties, DmImageZonePropertyData, DmMediaStateContainer, DmSignMetadata, DmSignProperties, DmSignState, DmState, DmTextWidget, DmVideoContentItemData, DmVideoZoneProperties, DmVideoZonePropertyData, DmWidget, DmZoneLayerIdParams, DmcEvent, DmcMediaState, EventParams, MediaStateAction, MediaStateParams, SignAction, SignParams, TickerZonePropertyParams, VideoOrImagesZonePropertyParams, ZoneAddAction, ZoneAddInputParams, ZoneAddParams, ZonePropertyUpdateAction, ZonePropertyUpdateParams, dmAddCommand, dmAddMediaState, dmAddZone, dmCreateCommand, dmCreateCommandData, dmGetEventById, dmGetEventIdsForMediaState, dmGetMediaStateById, dmGetMediaStateIdsForProps, dmGetSignState, dmGetZoneLayerIdByTypeAndIndex, dmGetZoneLayerSequence, dmGetZoneMediaStateContainer, dmMoveZoneLayersAtIndices, dmNewSign, dmPlaylistAddMediaState, dmUpdateEvent, dmUpdateSignGpio, dmUpdateSignIrInConfiguration, dmUpdateSignIrOutConfiguration, dmUpdateSignIrRemoteControl, dmUpdateSignProperties, dmUpdateZoneProperties } from "@brightsign/bsdatamodel";
 import { BACommandNames, LiveDataFeed } from './baInterfaces';
-import { AddedArPlaylistState, ArImagePlaylistItem, ArMediaPlaylistItem, ArPlayFileItemContentItem, ArPlaylistState, ArSign, ArSignMetadata, ArVideoItem, ArVideoOrImagesZone, ArVideoOrImagesZoneProperties, ArVideoZonePropertyData, ArZone } from './types';
+import { AddedArPlaylistState, ArImagePlaylistItem, ArMediaPlaylistItem, ArPlayFileItemContentItem, ArPlaylistState, ArSign, ArSignMetadata, ArVideoItem, ArVideoOrImagesZone, ArVideoOrImagesZoneProperties, ArVideoZonePropertyData, ArZone, BpfConverterSpec } from './types';
 
 export const generateBpfx = (arSign: ArSign): any => {
   return (dispatch: Function, getState: any) => {
@@ -46,7 +46,7 @@ export const generateBpfx = (arSign: ArSign): any => {
     const zoneIds: string[] = dispatch(addAllZones(arSign.zones));
     const promise: any = dispatch(buildZonePlaylists(arSign, zoneIds));
     return promise
-      .then( () => {
+      .then(() => {
         return Promise.resolve(getState());
       });
   }
@@ -387,23 +387,11 @@ export const addAllZones = (zones: ArZone[]): any => {
             zoneLayerIdParams.graphicsLayerId = graphicsLayerId;
           }
           break;
-        // case ZoneType.BackgroundImage:
-        //   if (!isNil(videoLayer2Id)) {
-        //     zoneLayerIdParams.videoLayerId = videoLayer2Id;
-        //   }
-        //   else {
-        //     zoneLayerIdParams.videoLayerId = videoLayer1Id;
-        //   }
-        //   break;
-        // case ZoneType.Images:
-        // case ZoneType.Ticker:
-        // case ZoneType.Clock:
-        //   zoneLayerIdParams.graphicsLayerId = graphicsLayerId;
-        //   break;
-        // case ZoneType.AudioOnly:
-        // case ZoneType.EnhancedAudio:
-        //   zoneLayerIdParams.audioLayerId = audioLayerId;
-        //   break;
+        case ZoneType.Ticker:
+          zoneLayerIdParams.graphicsLayerId = graphicsLayerId;
+          break;
+        default:
+          debugger;
       }
       const zoneAddInputParams: ZoneAddInputParams = {
         nonInteractive: zone.playlist.type !== 'interactive',
@@ -497,37 +485,12 @@ const setZoneProperties = (
         dispatch(setVideoOrImagesZoneSpecificProperties(arZone, zoneId));
         break;
       }
-      // case ZoneType.VideoOnly: {
-      //   dispatch(setVideoZoneSpecificProperties(arZone, zoneId));
-      //   break;
-      // }
-      // case ZoneType.Images: {
-      //   dispatch(setImageZoneSpecificProperties(arZone, zoneId));
-      //   break;
-      // }
-      // case ZoneType.AudioOnly: {
-      //   dispatch(setAudioZoneSpecificProperties(arZone, zoneId));
-      //   break;
-      // }
-      // case ZoneType.EnhancedAudio: {
-      //   dispatch(setEnhancedAudioZoneSpecificProperties(arZone, zoneId));
-      //   break;
-      // }
-      // case ZoneType.Ticker: {
-      //   dispatch(setTickerZoneSpecificProperties(arZone, zoneId));
-      //   break;
-      // }
-      // case ZoneType.Clock: {
-      //   dispatch(setClockZoneSpecificProperties(arZone, zoneId));
-      //   break;
-      // }
-      case ZoneType.BackgroundImage: {
-        // no zoneSpecific properties for a background image zone
+      case ZoneType.Ticker: {
+        dispatch(setTickerZoneSpecificProperties(arZone, zoneId));
         break;
       }
       default: {
         debugger;
-        // throw 'Invalid zone type';
       }
     }
   };
@@ -564,6 +527,50 @@ const setVideoOrImagesZoneSpecificProperties = (arZone: ArVideoOrImagesZone, zon
     dispatch(updateZonePropertyThunkAction);
   };
 }
+
+function setTickerZoneSpecificProperties(bpfZone: any, zoneId: BsDmId) {
+  return (dispatch: Function, getState: Function): any => {
+    const zoneSpecificParameters = bpfZone.zoneSpecificParameters;
+
+    const textWidgetParameters: any = zoneSpecificParameters.textWidget;
+    const widgetParameters: any = zoneSpecificParameters.widget;
+
+    const textWidget: DmTextWidget = {
+      numberOfLines: textWidgetParameters.numberOfLines,
+      delay: textWidgetParameters.delay,
+      rotation: textWidgetParameters.rotation,
+      alignment: textWidgetParameters.alignment,
+      scrollingMethod: textWidgetParameters.scrollingMethod,
+    };
+
+    const widget: DmWidget = {
+      foregroundTextColor: widgetParameters.foregroundTextColor,
+      backgroundTextColor: widgetParameters.backgroundTextColor,
+      font: 'System',
+      fontSize: widgetParameters.fontSize,
+      backgroundBitmapAssetId: BsAssetIdNone,
+      stretchBitmapFile: false,
+    }
+    const scrollSpeed = zoneSpecificParameters.scrollSpeed;
+
+    const tickerZonePropertyParams: TickerZonePropertyParams = {
+      textWidget,
+      widget,
+      scrollSpeed,
+    };
+
+    const zonePropertyUpdateParams: ZonePropertyUpdateParams = {
+      id: zoneId,
+      type: ZoneType.Ticker,
+      properties: tickerZonePropertyParams
+    };
+
+    const updateZonePropertyThunkAction: BsDmThunkAction<ZonePropertyUpdateParams> =
+      dmUpdateZoneProperties(zonePropertyUpdateParams);
+    dispatch(updateZonePropertyThunkAction);
+  };
+}
+
 
 function getAudioZonePropertyData(
   zoneSpecificParameters: any,
@@ -934,6 +941,9 @@ function addStatesToZone(
 
             const bsdm: DmState = getState().bsdm;
 
+            ////
+            // the state object from an autoplay does not have brightSignEntryCommands
+            // the state object from a bpf (from which this code was copied) does have brightSignEntryCommands
             state.brightSignEntryCommands.forEach((brightSignCommand: any) => {
               dispatch(
                 buildCommand(
